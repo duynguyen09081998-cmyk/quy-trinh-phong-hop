@@ -160,3 +160,57 @@ with tab2:
                             st.rerun()
         else:
             st.info("Hiện tại không có đơn nào đang chờ phê duyệt.")
+# ==========================================
+# KHU VỰC CHUNG: LỊCH SỬ & TRẠNG THÁI PHÒNG HỌP
+# ==========================================
+st.markdown("---")
+st.header("🗓️ Trạng thái đặt phòng thực tế (Tất cả các Đơn)")
+
+# Bộ lọc nhanh trạng thái để người dùng dễ nhìn
+status_filter = st.radio(
+    "Lọc theo trạng thái:", 
+    ["Tất cả", "Đã duyệt (Approved)", "Chờ duyệt (Pending)", "Bị từ chối (Rejected)"], 
+    horizontal=True
+)
+
+# Chuyển đổi lựa chọn tiếng Việt sang giá trị lưu trong Database
+mapping = {
+    "Tất cả": None,
+    "Đã duyệt (Approved)": "Approved",
+    "Chờ duyệt (Pending)": "Pending",
+    "Bị từ chối (Rejected)": "Rejected"
+}
+
+with get_db() as db:
+    cursor = db.cursor()
+    selected_status = mapping[status_filter]
+    
+    if selected_status:
+        cursor.execute("SELECT * FROM bookings WHERE status = ? ORDER BY id DESC", (selected_status,))
+    else:
+        cursor.execute("SELECT * FROM bookings ORDER BY id DESC")
+        
+    all_rows = cursor.fetchall()
+    
+    if all_rows:
+        # Chuyển dữ liệu thành bảng hiển thị công khai
+        full_list = [dict(row) for row in all_rows]
+        df_all = pd.DataFrame(full_list)
+        
+        # Định nghĩa lại tên cột hiển thị cho người dùng phổ thông dễ đọc
+        df_all = df_all.rename(columns={
+            "id": "Mã Đơn",
+            "room_name": "Tên Phòng",
+            "requester": "Người Đặt",
+            "booking_date": "Ngày Họp",
+            "start_time": "Bắt Đầu",
+            "end_time": "Kết Thúc",
+            "reason": "Lý Do Họp",
+            "status": "Trạng Thái",
+            "reject_reason": "Lý Do Từ Chối (Nếu có)"
+        })
+        
+        # Hiển thị bảng dạng theo dõi trực quan
+        st.dataframe(df_all, use_container_width=True, hide_index=True)
+    else:
+        st.info("Chưa có dữ liệu đơn đăng ký nào phù hợp với bộ lọc này.")
